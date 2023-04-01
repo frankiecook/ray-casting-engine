@@ -1,0 +1,9 @@
+montage command
+	-background transparent # keep transparent pixels
+	-geometry 128x128	# 128x128 no border
+	-filter point		# don't smooth
+	-tile 8x		# 8 columns
+	source/*.png		# input
+	output/atlas.png	# output
+
+magick montage -background transparent -geometry 256x256 -tile 5x *.png result/atlas.png

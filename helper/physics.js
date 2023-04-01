@@ -1,17 +1,73 @@
 /*
 PHYSICS
-Refactor Date: 11/11/21
-
-Description:
-Includes functions for physics based calculations
-List of functions below
-
-collisionCheckPlayer() : determine if the given player's position collides with the environment
-collisionCheckRay()    : determines if the given ray's position collides with the enviroment
-calculateWallFace()    : determine which face of a wall (NSEW) a ray has collided with
-checkAdjacentWalls()   : additional wall checks for calculating the face of a wall
-posToSegment()         : converts coordinate vectors to segment vectors
+functions for calculating physics
 */
+
+
+
+// world variable is temporary for debugging
+function collisionCheck(futurePos, player, world) {
+  var currentPlayerChunkPos = posToSegment(player.position, world);
+  var futurePlayerChunkPos = posToSegment(futurePos, world);
+  var walls = new Array(9);
+
+  for (col=0; col<3; col++) {
+    for (row=0; row<3; row++) {
+      var place = row+col*3;
+      walls[row + col*3] = createVector(currentPlayerChunkPos.x+(col-1), currentPlayerChunkPos.y+(row-1));
+    }
+  }
+
+  // decision
+  if (world.array[futurePlayerChunkPos.y][futurePlayerChunkPos.x] == 0) {
+    return false
+  } else {
+    return true
+  }
+}
+
+// world variable is temporary for debugging
+function collisionRay(ray, world) {
+  var position = createVector(0, 0);
+  copy2DVector(position, ray.position);
+  var rayChunkPos = posToSegment(position, world);
+
+  // decision
+  if (world.array[rayChunkPos.y][rayChunkPos.x] == 0) {
+    return false
+  } else {
+    // find the projection of the collision coordinate onto the intersected wall
+    collisionProj(ray, world);
+
+    return true
+  }
+}
+
+function collisionCheckPosition(pos, world) {
+  var position = createVector(0, 0);
+  copy2DVector(position, pos);
+
+
+  var rayChunkPos = posToSegment(position, world);
+  console.log("RCP " + posToSegment(position, world));
+  // check if the ray segment position is out of bounds
+  if (rayChunkPos.x >= 0 && rayChunkPos.y >= 0 &&
+      rayChunkPos.x < world.array[0].length && rayChunkPos.y < world.array.length) {
+        // decision
+        if (world.array[rayChunkPos.y][rayChunkPos.x] == 0) {
+          return false
+        } else {
+          // find the projection of the collision coordinate onto the intersected wall
+          //collisionProj(position, world);
+
+          return true
+        }
+      } else {
+        console.log("RAY IS O U T O F B O U N D S");
+        return true
+      }
+
+}
 
 // checks if player position collides with the environment
 // world variable is temporary for debugging
@@ -55,7 +111,7 @@ function collisionCheckRay(counterpart, ray, world) {
 
   // collsiion orign may not belong here
   var collision_origin = createVector(counterpart_segment_pos.x * world.segmentSize, counterpart_segment_pos.y * world.segmentSize);
-  copy2DVector(ray.collisionOrigin, collision_origin);
+  //copy2DVector(ray.collisionOrigin, collision_origin);
 
   // flip y value of counterpart
   counterpart_segment_pos.y *= -1;
@@ -85,7 +141,7 @@ function collisionCheckRay(counterpart, ray, world) {
 // West Face = 3
 function calculateWallFace(ray, world) {
   // variables
-  var collision_origin = ray.collisionOrigin;
+  var collision_origin = ray.collision_face_origin;//createVector(ray.collision_face_origin.x, ray.collision_face_origin.y);
   var segment_size = world.segmentSize;
   var ray_collision = createVector(ray.position.x, ray.position.y * -1);
 
@@ -110,60 +166,68 @@ function calculateWallFace(ray, world) {
   }
 }
 
-// check if walls exist around the collision wall for insurrance in detecting the face
+function collisionProj(ray, world) {
+  var vectorA = createVector(0, 0);
+  var vectorB = createVector(0, 0);
+
+  // calculate vector A
+  // current ray position from canvas origin minus
+  // current collision origin from canvas origin
+  var worldRayPosition = ray.position;
+  var worldCollisionOrigin = ray.collision_face_origin;
+
+  copy2DVector(vectorA, worldCollisionOrigin);
+  vectorA = multiply2DVectors(vectorA, -1);
+  add2DVectors(vectorA, worldRayPosition);
+
+  // calculate vector B
+  // end of the vector (wall) that the ray collided with
+  vectorB.x = 0;
+  vectorB.y = 50;
+
+}
+
 function checkAdjacentWalls(wallPosition, world) {
-  // honestly not even sure how this array_wall_position works
-  var array_wall_position = createVector(0, 0);
-  var adjacent_walls = new Array(4);
+  var arrayWallPosition = createVector((wallPosition.x - (wallPosition.x % world.segmentSize)) / world.segmentSize, (wallPosition.y - (wallPosition.y % world.segmentSize)) / world.segmentSize)
+  var adjacentWalls = new Array(4);
 
-  // the four faces
-  var north = array_wall_position.y - 1;
-  var east = array_wall_position.x + 1;
-  var south = array_wall_position.y + 1;
-  var west = array_wall_position.x - 1;
-
-  // set array_wall_position
-  array_wall_position.x = (wallPosition.x - (wallPosition.x % world.segmentSize)) / world.segmentSize;
-  array_wall_position.y = (wallPosition.y - (wallPosition.y % world.segmentSize)) / world.segmentSize;
-
-  // check north
-  if (north >= 0) {
-    adjacent_walls[0] = world.array[north][array_wall_position.x];
+  // check top
+  var top = arrayWallPosition.y - 1;
+  if (top >= 0) {
+    adjacentWalls[0] = world.array[top][arrayWallPosition.x];
   } else {
-    adjacent_walls[0] = 0;
+    adjacentWalls[0] = 0;
+  }
+  // check right
+  var right = arrayWallPosition.x + 1;
+  if (right < world.width) {
+    adjacentWalls[1] = world.array[arrayWallPosition.y][right];
+  } else {
+    adjacentWalls[1] = 0;
+  }
+  // bottom
+  var bottom = arrayWallPosition.y + 1;
+  if (bottom < world.height) {
+    adjacentWalls[2] = world.array[bottom][arrayWallPosition.x];
+  } else {
+    adjacentWalls[2] = 0;
+  }
+  // left
+  var left = arrayWallPosition.x - 1;
+  if (left >= 0) {
+    adjacentWalls[3] = world.array[arrayWallPosition.y][left];
+  } else {
+    adjacentWalls[3] = 0;
   }
 
-  // check east
-  if (east < world.width) {
-    adjacent_walls[1] = world.array[array_wall_position.y][east];
-  } else {
-    adjacent_walls[1] = 0;
-  }
-
-  // check south
-  if (south < world.height) {
-    adjacent_walls[2] = world.array[south][array_wall_position.x];
-  } else {
-    adjacent_walls[2] = 0;
-  }
-
-  // check west
-  if (west >= 0) {
-    adjacent_walls[3] = world.array[array_wall_position.y][west];
-  } else {
-    adjacent_walls[3] = 0;
-  }
-
-  return adjacent_walls;
+  return adjacentWalls;
 }
 
 // convert a vector from pixels to world segments
-function posToSegment(position_vector, world) {
-  var segment_size = world.segmentSize;
-  var segment_vector = createVector(0, 0);
+function posToSegment(vec1, world) {
+  var x = ((vec1.x) - ((vec1.x) % world.segmentSize)) / world.segmentSize;
+  var y = ((vec1.y) - ((vec1.y) % world.segmentSize)) / world.segmentSize;
+  var newVector = createVector(x, y);
 
-  segment_vector.x = ((position_vector.x) - ((position_vector.x) % segment_size)) / segment_size;
-  segment_vector.y = ((position_vector.y) - ((position_vector.y) % segment_size)) / segment_size;
-
-  return segment_vector
+  return newVector
 }

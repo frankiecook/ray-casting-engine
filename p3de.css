@@ -1,0 +1,197 @@
+:root {
+   --bg_1: #81b29a;
+  --bd_1: #3d405b;
+  --ctrl_1: #e07a5f;
+  --ctrl_2: #f2cc8f;
+/*
+  --bg_1: #eb5e28;
+  --bd_1: #403d39;
+  --ctrl_1: #ccc5b9;
+  --ctrl_2: #252422;*/
+}
+
+/*
+body {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 5%;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+}*/
+
+#controls_container {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  border: 8px solid var(--bd_1);
+
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+
+  touch-action: none;
+}
+
+#controls_container #fullscreen {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Old versions of Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently
+                                supported by Chrome, Edge, Opera and Firefox */
+}
+
+#glcanvas_container {
+  width: 70%;
+  height: 100%;
+  padding: 1%;
+  position: relative;
+  background-color: var(--bg_1);
+
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+#glcanvas_container2 {
+  background-color: var(--bg_1);
+  width: 100%;
+  max-height: 100%;
+
+  aspect-ratio: 4/3;
+  display: flex;
+  justify-content: space-evenly;
+}
+
+#glcanvas {
+  height: 100%;
+  aspect-ratio: 4/3;
+  border: 5px solid var(--bd_1);
+  border-radius: 10px;
+  z-index: 99;
+
+  display: flex;
+}
+
+#controls_left, #controls_right {
+  width: 15%;
+  position: relative;
+  background-color: var(--bg_1);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+#joystick, #fire {
+  position: absolute;
+  width: 80%;
+  aspect-ratio: 1 / 1;
+  background: var(--ctrl_2);
+  border: 5px solid var(--bd_1);
+  margin: 6%;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+#joystick, #knob {
+  -moz-border-radius: 50%;
+  -webkit-border-radius: 50%;
+  border-radius: 50%;
+}
+
+#knob {
+  position: absolute;
+  width: 40%;
+  aspect-ratio: 1 / 1;
+  background: var(--ctrl_1);
+  z-index: 98;
+}
+
+#fullscreen {
+  position: absolute;
+  width: 70%;
+  aspect-ratio: 3 / 1;
+  border-radius: 10px;
+  background: var(--ctrl_2);
+  border: 5px solid var(--bd_1);
+
+  margin: 6%;
+  top: 0;
+}
+
+#fire {
+  border-radius: 10px;
+}
+
+#fire:active {
+  background-color: var(--ctrl_1);  
+}
+
+@media (max-width: 500px) {
+  body {
+    align-items: center;
+  }
+
+  #controls_container {
+    position: relative;
+    height: 100%;
+    width: 100%;
+
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  #canvas_container {
+    width: 100%;
+    height: 45%;
+    background-color: var(--bg_1);
+  }
+
+  #controls_left, #controls_right {
+    width: 50%;
+    height: 55%;
+  }
+
+  /*swap the order of flex elements*/
+  #controls_container {
+    display: -webkit-box;
+    display: -moz-box;
+    display: -ms-flexbox;
+    display: -webkit-flex;
+  }
+
+  #controls_container #controls_left {
+    -webkit-box-ordinal-group: 2;
+    -moz-box-ordinal-group: 2;
+    -ms-flex-order: 2;
+    -webkit-order: 2;
+    order: 2;
+  }
+
+  #controls_container #glcanvas {
+    -webkit-box-ordinal-group: 1;
+    -moz-box-ordinal-group: 1;
+    -ms-flex-order: 1;
+    -webkit-order: 1;
+    order: 1;
+  }
+
+  #controls_container #controls_right {
+    -webkit-box-ordinal-group: 3;
+    -moz-box-ordinal-group: 3;
+    -ms-flex-order: 3;
+    -webkit-order: 3;
+    order: 3;
+  }
+}

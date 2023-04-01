@@ -19,45 +19,43 @@ renderDistance  : how far the rays travel
 FOV             : Field of view in degrees
 
 Functions:
-constructor(): builds the object with predefined variables
+constructor(): builds the object with predefined variablesd
 setup(): set up aspects of a newly created camera
-
 */
+var DEBUG_KEYBOARD_UPDATE_VIEW_DISTANCE = false;
+var DEBUG_KEYBOARD_UPDATE_RAYS = false;
 
-let DEBUG_KEYBOARD_UPDATE_RAYS = false;
-let DEBUG_KEYBOARD_UPDATE_VIEW_DISTANCE = false;
-let DEBUG_PLOT_COUNTERPARTS = false;
-let DEBUG_THE_LOOP_CASE_0 = false;
-let DEBUG_THE_LOOP_CASE_1 = false;
-let DEBUG_THE_LOOP_CASE_2 = false;
-let DEBUG_THE_LOOP_CASE_3 = false;
+class Camera extends Physical {
+  constructor(name) {
+    // Check that the right amount of arguments are provided
+    if (arguments.length != 1) {
+      throw new Error ("Argument length of " + arguments.length + " is wrong, expected 1.");
+    }
 
-class Camera {
-  constructor() {
-    this.position = createVector(0, 0),
-    this.normal = createVector(1, 0),
+    super(name),
     this.viewLeftCoord = createVector(0, 0),
     this.viewRightCoord = createVector(0, 0),
     this.rays = [],
     this.raysToView = [],
     this.segmentVertices,
-    this.numOfRays = 3,
-    this.viewDistance = 10,
-    this.renderDistance = 600,
-    this.FOV = 66
+    this.numOfRays,
+    this.viewDistance,
+    this.renderDistance,
+    this.FOV
   }
 
-  // initial set up for the camera
-  // this will create the array for rays, and segment vertices
-  // fills the arrays with defualt vectors
-  setup(currentPlayer) {
-    copy2DVector(this.position, currentPlayer.position);
-    copy2DVector(this.normal, currentPlayer.normal);
+  // setup variables for the camera
+  setup() {
+    // set variables
+    this.updateNumOfRays();
+    this.setRenderDistance(450);
+    this.setFOV(Math.trunc(60));// 2 * 17.7914));//2 * 38.65980825));//2 * 26.565051177078)); //66
+    this.updateViewDistance();
 
     // set the size of each array for keeping track of the rays
-    this.rays = new Array(this.numOfRays);
-    this.raysToView = new Array(this.numOfRays);
-    this.segmentVertices = new Array(this.numOfRays * 2);
+    this.setRaysLength(this.numOfRays);
+    this.setRaysToViewLength(this.numOfRays);
+    this.setSegmentVerticesLength(this.numOfRays * 2);
 
     // assign default arrays to the rays
     for (var i = 0; i < this.numOfRays; i++) {
@@ -67,12 +65,75 @@ class Camera {
     }
   }
 
-  // update the camera's position, normal, and rays
-  update(player) {
-    // update position and normal based on the player's posisiton and normal
-    copy2DVector(this.position, player.position);
-    copy2DVector(this.normal, player.normal);
+  setViewLeftCoord(x, y) {
+    this.viewLeftCoord.x = x;
+    this.viewLeftCoord.y = y;
+  }
 
+  setViewRightCoord(x, y) {
+    this.viewRightCoord.x = x;
+    this.viewRightCoord.y = y;
+  }
+
+  setRaysLength(length) {
+    if (Number.isInteger(length)) {
+      this.rays = new Array(length);
+    } else {
+      throw new Error (this.name + " can not set length of rays");
+    }
+  }
+
+  setRaysToViewLength(length) {
+    if (Number.isInteger(length)) {
+      this.raysToView = new Array(length);
+    } else {
+      throw new Error (this.name + " can not set length of rays to view");
+    }
+  }
+
+  setSegmentVerticesLength(length) {
+    if (Number.isInteger(length)) {
+      this.segmentVertices = new Array(length);
+    } else {
+      throw new Error (this.name + " can not set length of segment vertices");
+    }
+  }
+
+  setNumOfRays(num) {
+    if (Number.isInteger(num)) {
+      this.numOfRays = num;
+    } else {
+      throw new Error (this.name + " can not set length of num of rays");
+    }
+  }
+
+  setViewDistance(num) {
+    if (true) {
+      this.viewDistance = num;
+    } else {
+      throw new Error (this.name + " can not set length of view distance");
+    }
+  }
+
+  setRenderDistance(num) {
+    if (Number.isInteger(num)) {
+      this.renderDistance = num;
+    } else {
+      throw new Error (this.name + " can not set length of render distance");
+    }
+  }
+
+  setFOV(num) {
+    if (Number.isInteger(num)) {
+      this.FOV = num;
+    } else {
+      throw new Error (this.name + " can not set length of FOV");
+    }
+  }
+
+
+  // update the camera based on the player
+  update() {
     // update the view screen of the camera
     var view_left_coord = createVector(0,0);
     var view_right_coord = createVector(0,0);
@@ -118,31 +179,45 @@ class Camera {
       copy2DVector(cur_ray_to_view, this.normal);
       rotation2DVector(cur_ray_to_view, alpha);
       increase2DVector(cur_ray_to_view, ray_distance_to_view);
-
       copy2DVector(this.raysToView[i], cur_ray_to_view);
     }
 
-    var ray;
+    var casted_ray;
+    var gamma_initial;
+    var gamma_increment;
+    if (this.numOfRays > 1) {
+      gamma_increment = this.FOV / (this.numOfRays - 1);
+      gamma_initial = this.FOV / 2;
+    } else {
+      gamma_increment = 0;
+      gamma_initial = 0;
+    }
 
     // update the rays
     for (var i = 0; i < this.numOfRays; i++) {
-      length = view_segment_size * ((this.numOfRays - 1) / 2 - i);
-      alpha = atan(length / this.viewDistance);
-      ray_distance_to_view = this.viewDistance / cos(alpha);
-
+      // give the cur_ray an intiial position based on the camera's normal
       copy2DVector(cur_ray, this.normal);
-      rotation2DVector(cur_ray, alpha);
+      //console.log("ray["+i+"]"+" cur_ray normal " +cur_ray);
+      // find the correct rotation of the current ray based on the number of rays present
+      // convert degrees to radians
+      rotation2DVector(cur_ray, degreesToRadians(-1 * gamma_initial));
+      //console.log("ray["+i+"]"+" cur_ray initial rotation " +cur_ray);
+      rotation2DVector(cur_ray, degreesToRadians(gamma_increment * i));
 
-      copy2DVector(cur_ray_pos, cur_ray);
-      add2DVectors(cur_ray_pos, this.position);
-
-      ray = this.castRay(cur_ray_pos, cur_ray, this.position, world);
-      this.rays[i] = ray;
+      //add2DVectors(cur_ray_pos, this.position);
+      var ray = new Ray(cur_ray, createVector(0,0), createVector(0,0));
+      casted_ray = this.castRay(ray, world);
+      casted_ray.updateFace(world);
+      casted_ray.updateEnvironment();
+      casted_ray.index = i;
+      //casted_ray.updateLight(world);
+      this.rays[i] = casted_ray;
     }
 
-    /* DEBUG
-    update the settings of the camera using the keyboard
-    */
+    this.updateRays();
+
+    // DEBUG ONLY
+    // update the settings of the camera
 
     // view distance
     // KEY [80]: P
@@ -216,410 +291,315 @@ class Camera {
     }
   }
 
-  // cast a ray
-  castRay(position, normal, origin, world) {
+  updateViewDistance() {
+    // canvas height equals segment size (50)
+    // width / height = aspectratio 4 / 3
+    let canvas_width = (4/3) * world.segmentSize;//gl.canvas.width;
 
-    // new cast ray
-    // uh-oh, this is not going to account for enemies and objects
-    var ray = new Ray(position, normal, origin);
-    var normalCopy = createVector(ray.normal.x, ray.normal.y);
+    // trig using the width and angle
+    let vd = (canvas_width / 2) / Math.tan((this.FOV / 2) * 3.141592 / 180);
 
-    // position of ray relative to world origin
-    copy2DVector(ray.position, ray.origin);
-    add2DVectors(ray.position, ray.normal);
+    this.setViewDistance(vd);
+  }
 
-    var slope;
-    var y_intercept;
-    ray.normal.y *= -1; // the y of the normal is flipped right now so I have to correct for that I HAVE NO IDEA WHY
-    ray.origin.y *= -1; // same for the position
+  updateNumOfRays() {
+    let c = document.getElementById("glcanvas");
+    let width = Math.trunc(c.clientWidth - (c.clientWidth % 2));
+    let max_num = 400;
 
-    // y = m * x + b
-    // m : slope
-    slope = ray.normal.y / ray.normal.x; // I'm cheating and using the normal
-
-    // b : y-intercept
-    // origin of ray lies on line
-    y_intercept = ray.origin.y - slope * ray.origin.x;
-
-    if (ray.normal.x != 0) {
-      var x_1 = 0;
-      var y_1 = slope * x_1 + y_intercept;
-      var x_2 = 500;
-      var y_2 = slope * x_2 + y_intercept;
+    if (width < max_num) {
+      this.setNumOfRays(width);
     } else {
-      var y_1 = -0;
-      var x_1 = ray.origin.x;
-      var y_2 = -500;
-      var x_2 = ray.origin.x;
+      this.setNumOfRays(max_num);
+    }
+  }
+
+  updateRays() {
+    // variables for creating walls
+    var wallSegmentWidth = gl.canvas.width / this.numOfRays;//world.width * world.segmentSize / this.numOfRays;
+    var horizonHeight = gl.canvas.height * world.horizon;
+
+    var viewSize = Math.ceil(this.viewDistance * tan((this.FOV / 2) * Math.PI / 180) * 2);
+    var viewSegmentSize = viewSize / (this.numOfRays);
+
+    for (let ray of this.rays) {
+      ray.updateTexPos(world.player);
+      this.updateRay(ray, wallSegmentWidth, horizonHeight, viewSegmentSize);
+    }
+  }
+
+  updateRay(ray, wallSegmentWidth, horizonHeight, viewSegmentSize) {
+    let i = ray.index;
+
+    // calculate the magnitude
+    let length = viewSegmentSize * ((this.numOfRays - 1) / 2 - i);
+    let alpha = atan(length / this.viewDistance);
+    let distortedMagnitude = magnitude2DVector(ray.position);
+    let magnitude = Math.trunc(cos(alpha) * distortedMagnitude);
+    ray.magnitude = magnitude;
+
+    let VD = this.viewDistance; // view distance 
+
+    let segmentHeight;
+    
+    // draw a segment for the current ray
+    if (ray.isCollisionWall) {
+      // calculate wall height
+      // ratio
+      // projected wall height / view distance = actual wall height / distance
+      ray.segmentHeight = (world.segmentSize / magnitude) * VD; 
+      segmentHeight = (ray.segmentHeight / world.segmentSize) * gl.canvas.height;
+      //console.log(ray.segmentHeight);
+      let left_x = ray.index * wallSegmentWidth;
+      let right_x = left_x + wallSegmentWidth;
+      let top_y = horizonHeight - segmentHeight / 2;
+      let bottom_y = top_y + segmentHeight;
+
+      if (ray.segmentHeight >= world.segmentSize) {
+        top_y = 0;
+        bottom_y = gl.canvas.height;
+      }
+
+      left_x = Math.trunc(left_x);
+      top_y = Math.trunc(top_y);
+      right_x = Math.trunc(right_x);
+      bottom_y = Math.trunc(bottom_y);
+
+      ray.setTexLocation(ray.texture.x, ray.texture.y);
+
+      ray.updateClipCoords(left_x, right_x, top_y, bottom_y);
+
+    } else {
+      // when the ray does not collide with a wall, but rather reaches the render limit
+      ray.segmentHeight = (world.segmentSize / this.renderDistance) * VD;
+      segmentHeight = (ray.segmentHeight / world.segmentSize) * gl.canvas.height;
+
+      let left_x = ray.index * wallSegmentWidth;
+      let top_y = horizonHeight - segmentHeight / 2;
+      let right_x = left_x + wallSegmentWidth;
+      let bottom_y = top_y + segmentHeight;
+
+      left_x = Math.trunc(left_x);
+      top_y = Math.trunc(top_y);
+      right_x = Math.trunc(right_x);
+      bottom_y = Math.trunc(bottom_y);
+
+      ray.setTexLocation(4, 0);
+
+      ray.updateClipCoords(left_x, right_x, top_y, bottom_y);
+    }
+  }
+
+  castRay(ray, world) {
+    // calculate the slope
+    try {
+      var m = ray.position.y / ray.position.x;
+    } catch {
+      console.log("slope or x == 0");
     }
 
-    // change sign of variable for plotting to javascript canvas
-    var canvas_swap = -1;
+    // variable for special cases
+    var case_direction = createVector(0,0);
 
-    // case 0
-    if (ray.normal.x > 0 && ray.normal.y >= 0) {
-          // segment origin : Northwest corner of the segment rays are cast from
-          // counterpart_x : x value for incrementing y values by the segment size
-          // counterpart_y : y value for incrementing x values by the segment size
-          // player_cx : ray from player's position to counterpart-x's position
-          // player_cy : ray from player's position to counterpart-y's position
-          // mag_player_cx : magnitude of the player_cx
-          // mag_player_cy : magnitude of the player_cy
-          var segment_origin = createVector(0, 0);
-          var counterpart_x = createVector(0, 0);
-          var counterpart_y = createVector(0, 0);
-          var player_cx = createVector(0, 0);
-          var player_cy = createVector(0, 0);
-          var mag_player_cx;
-          var mag_player_cy;
-          var collision_check;
-          var y_process = 0;
-          var x_process = 0;
+    // cases
+    if (m == -Infinity || m == Infinity) {
+      // set the case direction
+      if (ray.position.y < 0) {
+        case_direction.y = -1;
+      } else {
+        case_direction.y = 1;
+      }
 
-          // set segment origin
-          copy2DVector(segment_origin, ray.origin);
-          segment_origin.x -= segment_origin.x % world.segmentSize;
-          segment_origin.y -= segment_origin.y % world.segmentSize;
+      this.castRayCase(case_direction, ray, world);
+    } else if (m == 0) {
+      // set the case direction
+      if (ray.position.x < 0) {
+        case_direction.x = -1;
+      } else {
+        case_direction.x = 1;
+      }
 
-          // moves the segment origin from Northwest to Northeast
-          segment_origin.x += world.segmentSize;
+      this.castRayCase(case_direction, ray, world);
+    } else {
+      // set up for equations to be calculated
+      // y = mx + b
+      // x = y / m
+      var ray_give_y = createVector(0,0); // point along ray with GIVEN y poisition
+      var ray_give_x = createVector(0,0); // point along ray with GIVEN x poistion
+      var player_segment_pos;
+      var mag_rgy, mag_rgx; // magnitude of ray_give_x / y
+      var x_direction, y_direction;
+      var world_rgy = createVector(0,0), world_rgx = createVector(0,0); //world coordinates of the ray poisition
+      var collision_check;
+      var decision_y, decision_x;
 
-          // counterpart vectors (this might be confusing)
-          // one vector has a set x value and the other a set y value
-          // each vector's counterpart is calculated based on these set values
-          counterpart_y.x = segment_origin.x;
-          counterpart_x.y = segment_origin.y;
+      // initial given value
+      player_segment_pos = createVector(this.position.x, this.position.y);
+      player_segment_pos = world.convertWorldCoordsToSegCoords(player_segment_pos);
 
-          // calculate counterpart
-          // y = m * x + b
-          // x = ( y - b ) / m
-          counterpart_y.y = slope * counterpart_y.x + y_intercept;
-          counterpart_x.x = ( counterpart_x.y - y_intercept ) / slope;
+      // calculate the direction of the ray for determing the quadrant this ray is facing
+      x_direction = ray.position.x / Math.abs(ray.position.x);
+      y_direction = ray.position.y / Math.abs(ray.position.y);
 
-          if (DEBUG_PLOT_COUNTERPARTS) {
-            rectMain(counterpart_x.x, counterpart_x.y * -1, 5, 5, [0, 1, 0, 1]);
-            rectMain(counterpart_y.x, counterpart_y.y * -1, 5, 5, [0, 0, 1, 1]);
+      // calculate the initial x and y values
+      if (x_direction == 1) {
+        decision_x = 1;
+      } else {
+        decision_x = 0;
+      }
+      ray_give_x.x += (world.segmentSize * decision_x - (this.position.x % world.segmentSize));// * x_direction;
+      if (y_direction == 1) {
+        decision_y = 1;
+      } else {
+        decision_y = 0;
+      }//determines whether to multiple by 1 or 0
+      ray_give_y.y += (world.segmentSize * decision_y - (this.position.y % world.segmentSize));// * y_direction;
+
+      // solve for the equations
+      // calculations here are relative to the origin of the ray, which is 0,0 or camera origin
+      ray_give_x.y = m * ray_give_x.x;
+      ray_give_y.x = ray_give_y.y / m;
+
+      // calculate the magnitude of the new rays
+      mag_rgx = magnitude2DVector(ray_give_x);
+      mag_rgy = magnitude2DVector(ray_give_y);
+
+      // LOOP
+      while(mag_rgy < this.renderDistance || mag_rgx < this.renderDistance) {
+        // check which point along the ray is closer
+        if (mag_rgy < mag_rgx) {
+
+          // update collision check
+          copy2DVector(world_rgy, this.position);
+          add2DVectors(world_rgy, ray_give_y);
+          
+          if (ray.position.y < 0) {
+            world_rgy.y -= world.segmentSize;
+            collision_check = world.collisionCheckVector(world_rgy, ray);
+            world_rgy.y += world.segmentSize;
+          } else {
+            collision_check = world.collisionCheckVector(world_rgy, ray);
           }
 
-          // math for player_c x and y
-          // these intersection points are relative to world origin
-          // so i just have to subtract the two
-          add2DVectors(player_cx, ray.origin);
-          add2DVectors(player_cy, ray.origin);
-
-          scalar2DVector(player_cx, -1);
-          scalar2DVector(player_cy, -1);
-
-          add2DVectors(player_cx, counterpart_x);
-          add2DVectors(player_cy, counterpart_y);
-
-          // find magnitude of the counterpart rays
-          mag_player_cy = magnitude2DVector(player_cy);
-          mag_player_cx = magnitude2DVector(player_cx);
-
-          if (DEBUG_PLOT_COUNTERPARTS) {
-            rectMain(segment_origin.x, segment_origin.y * -1, 5, 5, [1, 0, 0, 1]);
-
-            console.log("RED: starting corner "+ segment_origin);
-            console.log("First Two Coords ");
-            console.log("GREEN: start coords to collision_x " + player_cx);
-            console.log("BLUE: start coords to collision_y " + player_cy);
-          }
-
-          // THE LOOP
-          // this is where the rays are being "cast"
-          // in reality, two points are being calculated along the line of the ray
-          // a comparison is made to figure out which point is closer to the camera
-          // and that closer point will be changed based on an increment in the x or y direction by the segment size
-          while(mag_player_cy < this.renderDistance || mag_player_cx < this.renderDistance) {
-            // check which point is closer to the camera
-            if (mag_player_cx < mag_player_cy) {
-              // shifts the values in the y direction for a better representation of the world when testing for collision
-              counterpart_x.y += world.segmentSize;
-              collision_check = collisionCheckRay(counterpart_x, ray, world);
-              counterpart_x.y -= world.segmentSize;
-
-              if (DEBUG_THE_LOOP_CASE_0) {
-                console.log("CHECK: mag_cx < mag_cy");
-              }
-
-              // check for collision
-              if (collision_check) {
-                // save coords and exit the loop
-                copy2DVector(ray.position, counterpart_x);
-
-                if (DEBUG_THE_LOOP_CASE_0) {
-                  console.log("collistion true cp_x");
-                }
-
-                break;
-              } else {
-                // increase x counterpart by segment size in the y direction
-                // update x counterpart's x value
-                counterpart_x.y += world.segmentSize;
-                counterpart_x.x = ( counterpart_x.y - y_intercept ) / slope;
-
-                // update magnitude
-                // B = C - A :: cx_from_player = cx_from_origin - ray_from_origin
-                var cx_from_origin = createVector(counterpart_x.x, counterpart_x.y);
-                var ray_from_origin = createVector(ray.origin.x * -1, ray.origin.y * -1);
-                var cx_from_player = createVector(0, 0);
-
-                add2DVectors(cx_from_player, cx_from_origin);
-                add2DVectors(cx_from_player, ray_from_origin);
-
-                // find magnitude of the counterpart rays
-                mag_player_cx = magnitude2DVector(cx_from_player);
-
-                if (DEBUG_THE_LOOP_CASE_0) {
-                  console.log("YELLOW: new player_cx " + cx_from_player);
-                  rectMain(counterpart_x.x, counterpart_x.y * -1, 5, 5, [0, 1, 1, 1]);
-                }
-              }
+            // check for collision
+            if (collision_check) {
+              ray.isCollisionWall = true;
+              copy2DVector(ray.position, ray_give_y);
+              ray.magnitude = mag_rgy;
+              break;
             } else {
-              // update collision check
-              collision_check = collisionCheckRay(counterpart_y, ray, world);
 
-              if (DEBUG_THE_LOOP_CASE_0) {
-                console.log("mag_cx < mag_cy");
-              }
+            // update the ray postioin
+            copy2DVector(ray.position, ray_give_y);
+              ray.magnitude = mag_rgy;
 
-              // check collision
-              if (collision_check) {
-                // save coords and exit the loop
-                copy2DVector(ray.position, counterpart_y);
-
-                if (DEBUG_THE_LOOP_CASE_0) {
-                  console.log("collistion true cp_y");
-                }
-
-                break;
-              } else {
-                // increase y counterpart by segment size in the x direction
-                // update y counterpart's y value
-                counterpart_y.x += world.segmentSize;
-                counterpart_y.y = slope * counterpart_y.x + y_intercept;
-                // no more check since comparing magnitudes
-
-                // update magnitude
-                // B = C - A :: cy_from_player = cy_from_origin - ray_from_origin
-                var cy_from_origin = createVector(counterpart_y.x, counterpart_y.y);
-                var ray_from_origin = createVector(ray.origin.x * -1, ray.origin.y * -1);
-                var cy_from_player = createVector(0, 0);
-
-                add2DVectors(cy_from_player, cy_from_origin);
-                add2DVectors(cy_from_player, ray_from_origin);
-
-                // find magnitude of counterpart rays
-                mag_player_cy = magnitude2DVector(cy_from_player);
-
-                if (DEBUG_THE_LOOP_CASE_0) {
-                  console.log("PINK: new player_cy " + cy_from_player);
-                  rectMain(counterpart_y.x, counterpart_y.y * -1, 5, 5, [1, 0, 1, 1]);
-                }
-              }
-            }
+              // update ray_give_y with an increment in the given y value
+              ray_give_y.y += y_direction * world.segmentSize;
+              ray_give_y.x = ray_give_y.y / m;
+              mag_rgy = magnitude2DVector(ray_give_y);
           }
-        }
-
-    // case 1
-    else if (ray.normal.x <= 0 && ray.normal.y > 0) {
-          var segment_origin = createVector(0, 0);
-          copy2DVector(segment_origin, ray.origin);
-          segment_origin.x -= segment_origin.x % world.segmentSize;
-          segment_origin.y -= segment_origin.y % world.segmentSize;
-          segment_origin.y *= -1;
-
-          rectMain(segment_origin.x, segment_origin.y, player.radius * 2, player.radius * 2, [1, .2, .8, 1]);
-
-    }
-
-    // case 2
-    else if (ray.normal.x < 0 && ray.normal.y <= 0) {
-          // segment origin : Northwest corner of the segment rays are cast from
-          // counterpart_x : x value for incrementing y values by the segment size
-          // counterpart_y : y value for incrementing x values by the segment size
-          // player_cx : ray from player's position to counterpart-x's position
-          // player_cy : ray from player's position to counterpart-y's position
-          // mag_player_cx : magnitude of the player_cx
-          // mag_player_cy : magnitude of the player_cy
-          var segment_origin = createVector(0, 0);
-          var counterpart_x = createVector(0, 0);
-          var counterpart_y = createVector(0, 0);
-          var player_cx = createVector(0, 0);
-          var player_cy = createVector(0, 0);
-          var mag_player_cx;
-          var mag_player_cy;
-          var collision_check;
-          var y_process = 0;
-          var x_process = 0;
-
-          // set segment origin
-          copy2DVector(segment_origin, ray.origin);
-          segment_origin.x -= segment_origin.x % world.segmentSize;
-          segment_origin.y -= segment_origin.y % world.segmentSize;
-
-          // moves the segment origin from Northwest to Southwest
-          segment_origin.y -= world.segmentSize;
-
-          // counterpart vectors (this might be confusing)
-          // one vector has a set x value and the other a set y value
-          // each vector's counterpart is calculated based on these set values
-          counterpart_y.x = segment_origin.x;
-          counterpart_x.y = segment_origin.y;
-
-          // calculate counterpart
-          // y = m * x + b
-          // x = ( y - b ) / m
-          counterpart_y.y = slope * counterpart_y.x + y_intercept;
-          counterpart_x.x = ( counterpart_x.y - y_intercept ) / slope;
-
-          if (DEBUG_PLOT_COUNTERPARTS) {
-            rectMain(counterpart_x.x, counterpart_x.y * -1, 5, 5, [0, 1, 0, 1]);
-            rectMain(counterpart_y.x, counterpart_y.y * -1, 5, 5, [0, 0, 1, 1]);
+        } else {
+          // update collision check
+          copy2DVector(world_rgx, this.position);
+          add2DVectors(world_rgx, ray_give_x);
+          if (ray.position.x < 0) {
+            world_rgx.x -= world.segmentSize;
+            collision_check = world.collisionCheckVector(world_rgx, ray);
+            world_rgx.x += world.segmentSize;
+          } else {
+            collision_check = world.collisionCheckVector(world_rgx, ray);
           }
 
-          // math for player_c x and y
-          // these intersection points are relative to world origin
-          // so i just have to subtract the two
-          add2DVectors(player_cx, ray.origin);
-          add2DVectors(player_cy, ray.origin);
-
-          scalar2DVector(player_cx, -1);
-          scalar2DVector(player_cy, -1);
-
-          add2DVectors(player_cx, counterpart_x);
-          add2DVectors(player_cy, counterpart_y);
-
-          // find magnitude of the counterpart rays
-          mag_player_cy = magnitude2DVector(player_cy);
-          mag_player_cx = magnitude2DVector(player_cx);
-
-          if (DEBUG_PLOT_COUNTERPARTS) {
-            rectMain(segment_origin.x, segment_origin.y * -1, 5, 5, [1, 0, 0, 1]);
-
-            console.log("RED: starting corner "+ segment_origin);
-            console.log("First Two Coords ");
-            console.log("GREEN: start coords to collision_x " + player_cx);
-            console.log("BLUE: start coords to collision_y " + player_cy);
-          }
-
-          // THE LOOP
-          // this is where the rays are being "cast"
-          // in reality, two points are being calculated along the line of the ray
-          // a comparison is made to figure out which point is closer to the camera
-          // and that closer point will be changed based on an increment in the x or y direction by the segment size
-          while(mag_player_cy < this.renderDistance || mag_player_cx < this.renderDistance) {
-            // check which point is closer to the camera
-            if (mag_player_cx < mag_player_cy) {
-              // update collision check
-              collision_check = collisionCheckRay(counterpart_x, ray, world);
-
-              if (DEBUG_THE_LOOP_CASE_2) {
-                console.log("CHECK: mag_cx < mag_cy");
-              }
-
-              // check for collision
-              if (collision_check) {
-                // save coords and exit the loop
-                copy2DVector(ray.position, counterpart_x);
-
-                if (DEBUG_THE_LOOP_CASE_2) {
-                  console.log("collistion true cp_x");
-                }
-
-                break;
-              } else {
-                // increase x counterpart by segment size in the y direction
-                // update x counterpart's x value
-                counterpart_x.y -= world.segmentSize;
-                counterpart_x.x = ( counterpart_x.y - y_intercept ) / slope;
-
-                // update magnitude
-                // B = C - A :: cx_from_player = cx_from_origin - ray_from_origin
-                var cx_from_origin = createVector(counterpart_x.x, counterpart_x.y);
-                var ray_from_origin = createVector(ray.origin.x * -1, ray.origin.y * -1);
-                var cx_from_player = createVector(0, 0);
-
-                add2DVectors(cx_from_player, cx_from_origin);
-                add2DVectors(cx_from_player, ray_from_origin);
-
-                // find magnitude of the counterpart rays
-                mag_player_cx = magnitude2DVector(cx_from_player);
-
-                if (DEBUG_THE_LOOP_CASE_2) {
-                  console.log("YELLOW: new player_cx " + cx_from_player);
-                  rectMain(counterpart_x.x, counterpart_x.y * -1, 5, 5, [0, 1, 1, 1]);
-                }
-              }
+            // check for collision
+            if (collision_check) {
+              ray.isCollisionWall = true;
+              // save coords and exit the loop
+              copy2DVector(ray.position, ray_give_x);
+              ray.magnitude = mag_rgx;
+              break;
             } else {
-              // update collision check
-              // shifts the values in the x direction for a better representation of the world when testing for collision
-              counterpart_y.x -= world.segmentSize;
-              collision_check = collisionCheckRay(counterpart_y, ray, world);
-              counterpart_y.x += world.segmentSize;
+              // update the ray postioin
+              copy2DVector(ray.position, ray_give_x);
+              ray.magnitude = mag_rgx;
 
-              if (DEBUG_THE_LOOP_CASE_2) {
-                console.log("mag_cx < mag_cy");
-              }
-
-              // check collision
-              if (collision_check) {
-                // save coords and exit the loop
-                copy2DVector(ray.position, counterpart_y);
-
-                if (DEBUG_THE_LOOP_CASE_2) {
-                  console.log("collistion true cp_y");
-                }
-
-                break;
-              } else {
-                // increase y counterpart by segment size in the x direction
-                // update y counterpart's y value
-                counterpart_y.x -= world.segmentSize;
-                counterpart_y.y = slope * counterpart_y.x + y_intercept;
-                // no more check since comparing magnitudes
-
-                // update magnitude
-                // B = C - A :: cy_from_player = cy_from_origin - ray_from_origin
-                var cy_from_origin = createVector(counterpart_y.x, counterpart_y.y);
-                var ray_from_origin = createVector(ray.origin.x * -1, ray.origin.y * -1);
-                var cy_from_player = createVector(0, 0);
-
-                add2DVectors(cy_from_player, cy_from_origin);
-                add2DVectors(cy_from_player, ray_from_origin);
-
-                // find magnitude of counterpart rays
-                mag_player_cy = magnitude2DVector(cy_from_player);
-
-                if (DEBUG_THE_LOOP_CASE_2) {
-                  console.log("PINK: new player_cy " + cy_from_player);
-                  rectMain(counterpart_y.x, counterpart_y.y * -1, 5, 5, [1, 0, 1, 1]);
-                }
-              }
+              // update ray_give_x with an incrmenet in the given x value
+              ray_give_x.x += x_direction * world.segmentSize;
+              ray_give_x.y = m * ray_give_x.x;
+              mag_rgx = magnitude2DVector(ray_give_x);
             }
-          }
         }
-
-    // case 3
-    // x >= 0
-    // y < 0
-    else {
-      var segment_origin = createVector(0, 0);
-      copy2DVector(segment_origin, ray.origin);
-      segment_origin.x -= segment_origin.x % world.segmentSize;
-      segment_origin.y -= segment_origin.y % world.segmentSize;
-      segment_origin.y *= -1;
-
-      segment_origin.x += world.segmentSize;
-      segment_origin.y += world.segmentSize;
-
-      rectMain(segment_origin.x, segment_origin.y, player.radius * 2, player.radius * 2, [1, .2, .8, 1]);
+      }
     }
-
-    // calculate face
-    calculateWallFace(ray, world);
 
     return ray;
+  }
+
+  castRayCase(cd, ray, world) {
+    // calculat initial position
+    var initial_pos = createVector(0, 0);
+    var world_ip = createVector(0,0);
+    var size = world.segmentSize;
+    var origin = createVector(0,0);
+    var mag_ip;
+    var collision_check;
+
+    copy2DVector(origin, this.position);
+
+    // grab the origin of the ray inside the segment
+    origin.x %= size;
+    origin.y %= size;
+
+    // define initial positions of ray
+    initial_pos.x = ((size / 2 + cd.x * size / 2) - cd.x * origin.x) * cd.x;
+    initial_pos.y = ((size / 2 + cd.y * size / 2) - cd.y * origin.y) * cd.y;
+
+    // relative to world grid
+    copy2DVector(world_ip, this.position);
+    add2DVectors(world_ip, initial_pos);
+
+    // decide if the position value is active
+    initial_pos.x *= Math.abs(cd.x);
+    initial_pos.y *= Math.abs(cd.y);
+
+    // magnitude
+    mag_ip = magnitude2DVector(initial_pos);
+
+    // loop
+    while (mag_ip < this.renderDistance) {
+      // collision check
+      // adjust offset for check if necessary
+      if (cd.x < 0) {
+        world_ip.x -= size;
+      }
+      if (cd.y < 0) {
+        world_ip.y -= size;
+      }
+
+      // check
+      collision_check = world.collisionCheckVector(world_ip, ray);
+
+      // correct the offset
+      if (cd.x < 0) {
+        world_ip.x += size;
+      }
+      if (cd.y < 0) {
+        world_ip.y += size;
+      }
+
+      //
+      if (collision_check) {
+        copy2DVector(ray.position, initial_pos);
+        break;
+      } else {
+        copy2DVector(ray.position, initial_pos);
+
+        initial_pos.x += size * cd.x;
+        world_ip.x += size * cd.x;
+        initial_pos.y += size * cd.y;
+        world_ip.y += size * cd.y;
+
+        mag_ip = magnitude2DVector(initial_pos);
+      }
+    }
   }
 }

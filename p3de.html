@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--
+Title       : P3DE Webpage
+Creation    : 04/03/2023
+Last Edit   : x
+
+Description :
+  Contains the content and links for the Sand Simulator webpage
+  Contains relevant scripts for the Sand Simulator webpage (sandsimulator.js)
+-->
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="text/javascript" src="../../js/games/p3de/engine.js" defer></script>
+  </head>
+
+  <body class="game_container">
+    <header class="title">
+      <h2>P3DE : Ray Casting Demo</h2>
+    </header>
+
+      <div id="controls_container">
+        <div id="controls_left">
+          <button id="joystick" tabindex="-1" onkeyup="event.preventDefault()">
+            <div id="knob"></div>
+          </button>
+        </div>
+        <div id="glcanvas_container">
+          <div id="glcanvas_container2">
+            <canvas id="glcanvas" onresize="resize()"></canvas>
+          </div>
+        </div>
+        <div id="controls_right">
+          <button id="fullscreen" tabindex="-1" onkeyup="event.preventDefault()"></button>
+          <button id="fire" tabindex="-1" onkeyup="event.preventDefault()"></button>
+        </div>
+      </div>
+  </body>
+
+  <!-- vertex shader -->
+  <script id="vertex-shader-2d" type="x-shader/x-vertex">
+    attribute vec2 a_position;
+    attribute vec2 a_texCoord;
+    attribute vec4 vLight;
+
+    uniform vec2 u_resolution;
+
+    varying vec2 v_texCoord;
+    varying vec4 vLighting;
+
+    void main() {
+       // convert the rectangle from pixels to 0.0 to 1.0
+       vec2 zeroToOne = a_position / u_resolution;
+
+       // convert from 0->1 to 0->2
+       vec2 zeroToTwo = zeroToOne * 2.0;
+
+       // convert from 0->2 to -1->+1 (clipspace)
+       vec2 clipSpace = zeroToTwo - 1.0;
+
+       gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
+       // pass the texCoord to the fragment shader
+       // The GPU will interpolate this value between points.
+       v_texCoord = a_texCoord;
+       vLighting = vLight;
+       //v_texCoord = vec4(a_position, 0, 1);
+    }
+  </script>
+
+  <!-- fragment shader -->
+  <script id="fragment-shader-2d" type="x-shader/x-fragment">
+    precision mediump float;
+
+    // our textures
+    uniform sampler2D u_texture;
+
+    // the texCoords passed in from the vertex shader.
+    varying vec2 v_texCoord;
+    varying vec4 vLighting;
+
+    void main() {
+      // useful link https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Lighting_in_WebGL
+
+      vec4 texelColor = texture2D(u_texture, v_texCoord);
+
+      // discard transparent fragments
+      if (texelColor.a < 1.0) {
+        discard;
+      }
+
+       gl_FragColor = vec4(texelColor.xyz * vLighting.xyz, 1);
+    }
+  </script>
+
+  <script src="../../libraries/webglUtils.js"></script>
+
+  <script src="../../js/games/p3de/worlds/worlds.js"></script>
+  <script src="../../libraries/p5.js"></script>
+  <script src="../../js/games/p3de/helper/calculations.js"></script>
+  <script src="../../js/games/p3de/stage/utils.js"></script>
+
+  <script src="../../js/games/p3de/stage/entity.js"></script>
+  <script src="../../js/games/p3de/stage/physical.js"></script>
+  <script src="../../js/games/p3de/stage/drawn.js"></script>
+  <script src="../../js/games/p3de/stage/character.js"></script>
+
+  <script src="../../js/games/p3de/stage/player.js"></script>
+  <script src="../../js/games/p3de/stage/camera.js"></script>
+  <script src="../../js/games/p3de/stage/world.js"></script>
+  <script src="../../js/games/p3de/stage/ray.js"></script>
+  <script src="../../js/games/p3de/stage/surrounding.js"></script>
+  <script src="../../js/games/p3de/stage/weapon.js"></script>
+  <script src="../../js/games/p3de/stage/bullet.js"></script>
+
+  <script src="../../js/games/p3de/stage/item.js"></script>
+  <script src="../../js/games/p3de/stage/wall.js"></script>
+  <script src="../../js/games/p3de/helper/physics.js"></script>
+  <script src="../../js/games/p3de/render/render3D.js"></script>
+  <script src="../../js/games/p3de/helper/collision.js"></script>
+</html>
